@@ -2,6 +2,7 @@
 #include "Adafruit_DHT_Particle.h"
 #include "MQTT.h"
 
+char mqtt_server[] = "mqtt-redcat.local";
 char program_name[] = "particle-temp-monitor-mqtt";
 char device_name[] = "Test_Photon_004";
 
@@ -44,7 +45,6 @@ void callback(char* topic, byte* payload, unsigned int length);
  * want to use domain name,
  * MQTT client("www.sample.com", 1883, callback);
  **/
-byte mqtt_server[] = {192,168,0,5};
 MQTT client(mqtt_server, 1883, callback);
 // This is called when a message is received. However, we do not use this feature in
 // this project so it will be left empty
