@@ -118,11 +118,6 @@ void loop() {
             }
         }
         else {
-            if (!client.isConnected()) {
-                client.connect(device_id.c_str());
-                delay(50);
-            }
-
             if (client.isConnected()) {
                 client.publish(String::format("%s/temp_f", device_id.c_str()), String::format("%4.2f", t_f));
                 client.publish(String::format("%s/dewpt_f", device_id.c_str()), String::format("%4.2f", dp_f));
