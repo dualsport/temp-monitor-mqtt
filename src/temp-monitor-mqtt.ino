@@ -119,9 +119,18 @@ void loop() {
         }
         else {
             if (client.isConnected()) {
-                client.publish(String::format("%s/temp_f", device_id.c_str()), String::format("%4.2f", t_f));
-                client.publish(String::format("%s/dewpt_f", device_id.c_str()), String::format("%4.2f", dp_f));
-                client.publish(String::format("%s/rel_hum", device_id.c_str()), String::format("%4.2f", h));
+                client.publish(String::format("%s/readings/temperature", device_id.c_str()),
+                               String::format("{\"data\":{\"value\":%4.2f,\"unit\":\"c\"}}", t_c)
+                               );
+                client.publish(String::format("%s/readings/dewpoint", device_id.c_str()),
+                               String::format("{\"data\":{\"value\":%4.2f,\"unit\":\"c\"}}", dp_c)
+                               );
+                client.publish(String::format("%s/readings/humidity", device_id.c_str()),
+                               String::format("{\"data\":{\"value\":%4.2f,\"unit\":\"pct\"}}", h)
+                               );
+                // client.publish(String::format("%s/temp_f", device_id.c_str()), String::format("%4.2f", t_f));
+                // client.publish(String::format("%s/dewpt_f", device_id.c_str()), String::format("%4.2f", dp_f));
+                // client.publish(String::format("%s/rel_hum", device_id.c_str()), String::format("%4.2f", h));
             }
             else {
                 Particle.publish("status", "Unable to publish to MQTT server - disconnected.", PRIVATE);
