@@ -40,16 +40,9 @@ int led1 = D7; //onboard led
 
 // MQTT
 void callback(char* topic, byte* payload, unsigned int length);
-/**
- * if want to use IP address,
- * byte server[] = { XXX,XXX,XXX,XXX };
- * MQTT client(server, 1883, callback);
- * want to use domain name,
- * MQTT client("www.sample.com", 1883, callback);
- **/
 MQTT client(mqtt_server, 1883, callback);
-// This is called when a message is received. However, we do not use this feature in
-// this project so it will be left empty
+
+// Below callback handles received messages
 void callback(char* topic, byte* payload, unsigned int length) {
 }
 
@@ -88,10 +81,6 @@ void loop() {
     if (client.isConnected()) {
         client.loop();
     }
-    else {
-        client.connect(device_id.c_str(), mqtt_user, mqtt_pwd);
-        delay(50);
-    }
     if (Time.now() >= next_read)
     {
         current_time = Time.now();
@@ -118,6 +107,10 @@ void loop() {
             }
         }
         else {
+            if (!client.isConnected()) {
+                client.connect(device_id.c_str(), mqtt_user, mqtt_pwd);
+                delay(50);
+            }
             if (client.isConnected()) {
                 client.publish(String::format("%s/readings/temperature", device_id.c_str()),
                                String::format("{\"data\":{\"value\":%4.2f,\"unit\":\"c\"}}", t_c)
@@ -128,9 +121,6 @@ void loop() {
                 client.publish(String::format("%s/readings/humidity", device_id.c_str()),
                                String::format("{\"data\":{\"value\":%4.2f,\"unit\":\"pct\"}}", h)
                                );
-                // client.publish(String::format("%s/temp_f", device_id.c_str()), String::format("%4.2f", t_f));
-                // client.publish(String::format("%s/dewpt_f", device_id.c_str()), String::format("%4.2f", dp_f));
-                // client.publish(String::format("%s/rel_hum", device_id.c_str()), String::format("%4.2f", h));
             }
             else {
                 Particle.publish("status", "Unable to publish to MQTT server - disconnected.", PRIVATE);
