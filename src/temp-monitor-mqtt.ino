@@ -81,8 +81,7 @@ void loop() {
     if (client.isConnected()) {
         client.loop();
     }
-    if (Time.now() >= next_read)
-    {
+    if (Time.now() >= next_read) {
         current_time = Time.now();
         digitalWrite(led1, HIGH);
         // Reading temperature or humidity takes about 250 milliseconds!
@@ -107,28 +106,15 @@ void loop() {
             }
         }
         else {
-            if (!client.isConnected()) {
-                client.connect(device_id.c_str(), mqtt_user, mqtt_pwd);
-                delay(50);
-            }
-            if (client.isConnected()) {
-                client.publish(String::format("%s/readings/temperature", device_id.c_str()),
-                               String::format("{\"data\":{\"value\":%4.2f,\"unit\":\"c\"}}", t_c)
-                               );
-                client.publish(String::format("%s/readings/dewpoint", device_id.c_str()),
-                               String::format("{\"data\":{\"value\":%4.2f,\"unit\":\"c\"}}", dp_c)
-                               );
-                client.publish(String::format("%s/readings/humidity", device_id.c_str()),
-                               String::format("{\"data\":{\"value\":%4.2f,\"unit\":\"pct\"}}", h)
-                               );
-            }
-            else {
-                Particle.publish("status", "Unable to publish to MQTT server - disconnected.", PRIVATE);
-            }
-
+            // publish readings
+            mqtt_publish("temperature", t_c, "c");
+            mqtt_publish("dewpoint", dp_c, "c");
+            mqtt_publish("humidity", h, "pct");
+        
             last_publish = current_time;
             next_read = current_time - (current_time % period) + period;
         }
+    
         attempts = 0;
         digitalWrite(led1, LOW);
     }
@@ -145,6 +131,21 @@ void loop() {
             next_sync = current_time + sync_interval;
             Particle.publish("status", "time sync success", PRIVATE);
         }
+    }
+}
+
+void mqtt_publish(char *metric, float value, char *unit)
+{
+    if (!client.isConnected()) {
+        client.connect(device_id.c_str(), mqtt_user, mqtt_pwd);
+        delay(50);
+    }
+    if (client.isConnected()) {
+        client.publish(String::format("%s/readings/%s", device_id.c_str(), metric),
+                       String::format("{\"data\":{\"value\":%4.2f,\"unit\":\"%s\"}}", value, unit));
+    }
+    else {
+        Particle.publish("status", "Unable to publish to MQTT server - disconnected.", PRIVATE);
     }
 }
 
