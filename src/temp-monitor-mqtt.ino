@@ -5,7 +5,7 @@
 char mqtt_server[] = "mqtt-redcat.local";
 char mqtt_user[] = "redcatiot";
 char mqtt_pwd[] = "iaea123:)";
-char program_name[] = "particle-temp-monitor-mqtt";
+char program_name[] = "particle-temp-monitor-dht22-mqtt";
 String device_id = System.deviceID();
 
 #define DHTPIN D4     // what pin we're connected to
@@ -60,6 +60,7 @@ void setup() {
 
     // MQTT connect
     client.connect(device_id.c_str(), mqtt_user, mqtt_pwd);
+    delay(50);
     // MQTT publish
     if (client.isConnected()) {
         client.publish(String::format("%s/message", device_id.c_str()),"MQTT Startup");
@@ -87,9 +88,9 @@ void loop() {
         // Reading temperature or humidity takes about 250 milliseconds!
         // Sensor readings may also be up to 2 seconds 'old'
         float t_c = dht.getTempCelcius();
-        float t_f = (t_c * 9 / 5) + 32;
+        //float t_f = (t_c * 9 / 5) + 32;
         float dp_c = dht.getDewPoint();
-        float dp_f = (dp_c * 9 / 5) + 32;
+        //float dp_f = (dp_c * 9 / 5) + 32;
         float h = dht.getHumidity();
 
         // Check if any reads failed and if so try again.
@@ -134,8 +135,7 @@ void loop() {
     }
 }
 
-void mqtt_publish(char *metric, float value, char *unit)
-{
+void mqtt_publish(const char *metric, float value, const char *unit) {
     if (!client.isConnected()) {
         client.connect(device_id.c_str(), mqtt_user, mqtt_pwd);
         delay(50);
