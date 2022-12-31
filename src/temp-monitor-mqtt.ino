@@ -3,8 +3,10 @@
 #include "MQTT.h"
 
 char mqtt_server[] = "mqtt-redcat.local";
-char program_name[] = "particle-temp-monitor-mqtt";
-char device_name[] = "Test_Photon_004";
+char mqtt_user[] = "redcatiot";
+char mqtt_pwd[] = "iaea123:)";
+char program_name[] = "particle-temp-monitor-dht22-mqtt";
+String device_id = System.deviceID();
 
 #define DHTPIN D4     // what pin we're connected to
 
@@ -38,36 +40,30 @@ int led1 = D7; //onboard led
 
 // MQTT
 void callback(char* topic, byte* payload, unsigned int length);
-/**
- * if want to use IP address,
- * byte server[] = { XXX,XXX,XXX,XXX };
- * MQTT client(server, 1883, callback);
- * want to use domain name,
- * MQTT client("www.sample.com", 1883, callback);
- **/
 MQTT client(mqtt_server, 1883, callback);
-// This is called when a message is received. However, we do not use this feature in
-// this project so it will be left empty
+
+// Below callback handles received messages
 void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void setup() {
     Particle.publish("status", "start", PRIVATE);
     Particle.publish("program_name", program_name, PRIVATE);
-    Particle.publish("device_name", device_name, PRIVATE);
+    Particle.publish("device_id", device_id.c_str(), PRIVATE);
     Particle.function("current_conditions", current);
     Particle.function("program_name", publish_name);
-    Particle.function("device_name", publish_device_name);
+    Particle.function("device_id", publish_device_id);
 
     Particle.variable("publish_period_seconds", period);
     Particle.variable("last_publish", last_publish);
     Particle.variable("next_publish", next_read);
 
     // MQTT connect
-    client.connect(device_name);
+    client.connect(device_id.c_str(), mqtt_user, mqtt_pwd);
+    delay(50);
     // MQTT publish
     if (client.isConnected()) {
-        client.publish(String::format("%s/message", device_name),"MQTT Startup");
+        client.publish(String::format("%s/message", device_id.c_str()),"MQTT Startup");
         // client.subscribe("inTopic/message");
     }
 
@@ -86,15 +82,15 @@ void loop() {
     if (client.isConnected()) {
         client.loop();
     }
-    if(Time.now() >= next_read) {
+    if (Time.now() >= next_read) {
         current_time = Time.now();
         digitalWrite(led1, HIGH);
         // Reading temperature or humidity takes about 250 milliseconds!
         // Sensor readings may also be up to 2 seconds 'old'
         float t_c = dht.getTempCelcius();
-        float t_f = (t_c * 9 / 5) + 32;
+        //float t_f = (t_c * 9 / 5) + 32;
         float dp_c = dht.getDewPoint();
-        float dp_f = (dp_c * 9 / 5) + 32;
+        //float dp_f = (dp_c * 9 / 5) + 32;
         float h = dht.getHumidity();
 
         // Check if any reads failed and if so try again.
@@ -111,23 +107,15 @@ void loop() {
             }
         }
         else {
-            if (!client.isConnected()) {
-                client.connect(device_name);
-                delay(50);
-            }
-
-            if (client.isConnected()) {
-                client.publish(String::format("%s/temp_f", device_name), String::format("%4.2f", t_f));
-                client.publish(String::format("%s/dewpt_f", device_name), String::format("%4.2f", dp_f));
-                client.publish(String::format("%s/rel_hum", device_name), String::format("%4.2f", h));
-            }
-            else {
-                Particle.publish("status", "Unable to publish to MQTT server - disconnected.", PRIVATE);
-            }
-
+            // publish readings
+            mqtt_publish("temperature", t_c, "c");
+            mqtt_publish("dewpoint", dp_c, "c");
+            mqtt_publish("humidity", h, "pct");
+        
             last_publish = current_time;
             next_read = current_time - (current_time % period) + period;
         }
+    
         attempts = 0;
         digitalWrite(led1, LOW);
     }
@@ -144,6 +132,20 @@ void loop() {
             next_sync = current_time + sync_interval;
             Particle.publish("status", "time sync success", PRIVATE);
         }
+    }
+}
+
+void mqtt_publish(const char *metric, float value, const char *unit) {
+    if (!client.isConnected()) {
+        client.connect(device_id.c_str(), mqtt_user, mqtt_pwd);
+        delay(50);
+    }
+    if (client.isConnected()) {
+        client.publish(String::format("%s/readings/%s", device_id.c_str(), metric),
+                       String::format("{\"data\":{\"value\":%4.2f,\"unit\":\"%s\"}}", value, unit));
+    }
+    else {
+        Particle.publish("status", "Unable to publish to MQTT server - disconnected.", PRIVATE);
     }
 }
 
@@ -175,9 +177,9 @@ int publish_name(String args) {
     return 1;
 }
 
-int publish_device_name(String args) {
+int publish_device_id(String args) {
     digitalWrite(led1, HIGH);
-    Particle.publish("device_name", device_name, PRIVATE);
+    Particle.publish("device_id", device_id.c_str(), PRIVATE);
     digitalWrite(led1, LOW);
     return 1;
 }
