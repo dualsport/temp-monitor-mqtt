@@ -8,6 +8,22 @@ char mqtt_pwd[] = "iaea123:)";
 char program_name[] = "particle-temp-monitor-dht22-mqtt";
 String device_id = System.deviceID();
 
+// Buffersizes for storing credentials in EEPROM
+// Null byte at end reduces allowed string size by one
+const int eeprom_start_addr = 0;
+const int mqtt_server_buff_size = 64;
+const int mqtt_username_buff_size = 32;
+const int mqtt_password_buff_size = 32;
+
+const int mqtt_server_offset = eeprom_start_addr;
+const int mqtt_username_offset = mqtt_server_offset + mqtt_server_buff_size;
+const int mqtt_password_offset = mqtt_username_offset + mqtt_username_buff_size;
+
+// Default repeat time in seconds
+// Example 900 will repeat every 15 minutes at :00, :15, :30, :45
+const int log_period = 1800;
+const int log_period_offset = mqtt_password_offset + mqtt_password_buff_size;
+
 #define DHTPIN D4     // what pin we're connected to
 
 // Uncomment whatever type you're using!
@@ -21,10 +37,6 @@ String device_id = System.deviceID();
 // Connect a 10K resistor from pin 2 (data) to pin 1 (power) of the sensor
 
 DHT dht(DHTPIN, DHTTYPE);
-
-// Repeat time in seconds
-// Example 900 will repeat every 15 minutes at :00, :15, :30, :45
-const int period = 60;
 
 // time sync interval in seconds
 // simple interval, repeat every n seconds
@@ -50,13 +62,12 @@ void setup() {
     Particle.publish("status", "start", PRIVATE);
     Particle.publish("program_name", program_name, PRIVATE);
     Particle.publish("device_id", device_id.c_str(), PRIVATE);
+    Particle.publish("log_period", String(log_period), PRIVATE);
     Particle.function("current_conditions", current);
-    Particle.function("program_name", publish_name);
-    Particle.function("device_id", publish_device_id);
 
-    Particle.variable("publish_period_seconds", period);
-    Particle.variable("last_publish", last_publish);
-    Particle.variable("next_publish", next_read);
+    Particle.variable("Log period in seconds", log_period);
+    Particle.variable("Program name", program_name);
+    Particle.variable("Device ID", device_id.c_str());
 
     // MQTT connect
     client.connect(device_id.c_str(), mqtt_user, mqtt_pwd);
@@ -73,7 +84,7 @@ void setup() {
     digitalWrite(led1, LOW);
 
     current_time = Time.now();
-    next_read = current_time - (current_time % period) + period;
+    next_read = current_time - (current_time % log_period) + log_period;
     next_sync = current_time + sync_interval;
     delay(2000);
 }
@@ -102,8 +113,8 @@ void loop() {
                 attempts++;
             }
             else {
-                //give up, try again next period
-                next_read = current_time - (current_time % period) + period;
+                //give up, try again next log_period
+                next_read = current_time - (current_time % log_period) + log_period;
             }
         }
         else {
@@ -113,7 +124,7 @@ void loop() {
             mqtt_publish("humidity", h, "pct");
         
             last_publish = current_time;
-            next_read = current_time - (current_time % period) + period;
+            next_read = current_time - (current_time % log_period) + log_period;
         }
     
         attempts = 0;
@@ -170,16 +181,3 @@ int current(String unit) {
     return 1;
 }
         
-int publish_name(String args) {
-    digitalWrite(led1, HIGH);
-    Particle.publish("program_name", program_name, PRIVATE);
-    digitalWrite(led1, LOW);
-    return 1;
-}
-
-int publish_device_id(String args) {
-    digitalWrite(led1, HIGH);
-    Particle.publish("device_id", device_id.c_str(), PRIVATE);
-    digitalWrite(led1, LOW);
-    return 1;
-}
