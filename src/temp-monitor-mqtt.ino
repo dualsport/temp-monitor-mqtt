@@ -63,6 +63,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 void setup() {
     load_mqtt_config();
     client.setBroker(mqtt_server, 1883);
+
     Particle.publish("status", "start", PRIVATE);
     Particle.publish("program_name", program_name, PRIVATE);
     Particle.publish("device_id", device_id.c_str(), PRIVATE);
@@ -180,6 +181,7 @@ void load_mqtt_config() {
         EEPROM.get(mqtt_server_offset, stringBuf);
         stringBuf[sizeof(stringBuf) - 1] = 0; // make sure it's null terminated
         for (int i = 0; i < sizeof(stringBuf); i++) mqtt_server[i] = stringBuf[i];
+        client.setBroker(mqtt_server, 1883);
     }
     {
         char stringBuf[mqtt_username_buff_size];
