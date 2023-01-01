@@ -2,9 +2,6 @@
 #include "Adafruit_DHT_Particle.h"
 #include "MQTT.h"
 
-char mqtt_server[] = "mqtt-redcat.local";
-char mqtt_user[] = "redcatiot";
-char mqtt_pwd[] = "iaea123:)";
 char program_name[] = "particle-temp-monitor-dht22-mqtt";
 String device_id = System.deviceID();
 
@@ -15,13 +12,17 @@ const int mqtt_server_buff_size = 64;
 const int mqtt_username_buff_size = 32;
 const int mqtt_password_buff_size = 32;
 
+char mqtt_server[mqtt_server_buff_size];
+char mqtt_username[mqtt_username_buff_size];
+char mqtt_password[mqtt_password_buff_size];
+
 const int mqtt_server_offset = eeprom_start_addr;
 const int mqtt_username_offset = mqtt_server_offset + mqtt_server_buff_size;
 const int mqtt_password_offset = mqtt_username_offset + mqtt_username_buff_size;
 
 // Default repeat time in seconds
 // Example 900 will repeat every 15 minutes at :00, :15, :30, :45
-const int log_period = 1800;
+int log_period = 1800;
 const int log_period_offset = mqtt_password_offset + mqtt_password_buff_size;
 
 #define DHTPIN D4     // what pin we're connected to
@@ -52,6 +53,7 @@ int led1 = D7; //onboard led
 
 // MQTT
 void callback(char* topic, byte* payload, unsigned int length);
+// mqtt_server is null at this point, setBroker in setup() after load_mqtt_config()
 MQTT client(mqtt_server, 1883, callback);
 
 // Below callback handles received messages
@@ -59,23 +61,35 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void setup() {
+    load_mqtt_config();
+    client.setBroker(mqtt_server, 1883);
     Particle.publish("status", "start", PRIVATE);
     Particle.publish("program_name", program_name, PRIVATE);
     Particle.publish("device_id", device_id.c_str(), PRIVATE);
-    Particle.publish("log_period", String(log_period), PRIVATE);
+
     Particle.function("current_conditions", current);
+    Particle.function("set_mqtt_server", set_mqtt_server);
+    Particle.function("set_mqtt_useranme", set_mqtt_useranme);
+    Particle.function("set_mqtt_password", set_mqtt_password);
+    Particle.function("set log interval seconds" , set_log_interval);
 
     Particle.variable("Log period in seconds", log_period);
     Particle.variable("Program name", program_name);
     Particle.variable("Device ID", device_id.c_str());
+    Particle.variable("MQTT Server", mqtt_server);
+    Particle.variable("MQTT Username", mqtt_username);
+    Particle.variable("MQTT Password", mqtt_password);
 
     // MQTT connect
-    client.connect(device_id.c_str(), mqtt_user, mqtt_pwd);
+    client.connect(device_id.c_str(), mqtt_username, mqtt_password);
     delay(50);
     // MQTT publish
     if (client.isConnected()) {
-        client.publish(String::format("%s/message", device_id.c_str()),"MQTT Startup");
+        client.publish(String::format("%s/message", device_id.c_str()),"MQTT Connected");
         // client.subscribe("inTopic/message");
+    }
+    else {
+        Particle.publish("MQTT Connection Failed", "servername", PRIVATE);
     }
 
     dht.begin();
@@ -148,7 +162,7 @@ void loop() {
 
 void mqtt_publish(const char *metric, float value, const char *unit) {
     if (!client.isConnected()) {
-        client.connect(device_id.c_str(), mqtt_user, mqtt_pwd);
+        client.connect(device_id.c_str(), mqtt_username, mqtt_password);
         delay(50);
     }
     if (client.isConnected()) {
@@ -157,6 +171,36 @@ void mqtt_publish(const char *metric, float value, const char *unit) {
     }
     else {
         Particle.publish("status", "Unable to publish to MQTT server - disconnected.", PRIVATE);
+    }
+}
+
+void load_mqtt_config() {
+    {
+        char stringBuf[mqtt_server_buff_size];
+        EEPROM.get(mqtt_server_offset, stringBuf);
+        stringBuf[sizeof(stringBuf) - 1] = 0; // make sure it's null terminated
+        for (int i = 0; i < sizeof(stringBuf); i++) mqtt_server[i] = stringBuf[i];
+    }
+    {
+        char stringBuf[mqtt_username_buff_size];
+        EEPROM.get(mqtt_username_offset, stringBuf);
+        stringBuf[sizeof(stringBuf) - 1] = 0; // make sure it's null terminated
+        for (int i = 0; i < sizeof(stringBuf); i++) mqtt_username[i] = stringBuf[i];
+    }
+    {
+        char stringBuf[mqtt_password_buff_size];
+        EEPROM.get(mqtt_password_offset, stringBuf);
+        stringBuf[sizeof(stringBuf) - 1] = 0; // make sure it's null terminated
+        for (int i = 0; i < sizeof(stringBuf); i++) mqtt_password[i] = stringBuf[i];
+    }
+    {
+        int period;
+        EEPROM.get(log_period_offset, period);
+        if(period > 0) {
+            log_period = period;
+            // reset next log time
+            next_read = current_time - (current_time % log_period) + log_period;
+        }
     }
 }
 
@@ -181,3 +225,43 @@ int current(String unit) {
     return 1;
 }
         
+int set_mqtt_server(String new_mqtt_server) {
+  int addr = mqtt_server_offset;
+  char stringBuf[mqtt_server_buff_size];
+  // getBytes handles truncating the string if it's longer than the buffer.
+  new_mqtt_server.getBytes((unsigned char *)stringBuf, sizeof(stringBuf));
+  EEPROM.put(addr, stringBuf);
+  //for (int i = 0; i < sizeof(stringBuf); i++) mqtt_server[i] = stringBuf[i];
+  load_mqtt_config();
+  return 1;
+}
+
+int set_mqtt_useranme(String new_user_name) {
+  int addr = mqtt_username_offset;
+  char stringBuf[mqtt_username_buff_size];
+  // getBytes handles truncating the string if it's longer than the buffer.
+  new_user_name.getBytes((unsigned char *)stringBuf, sizeof(stringBuf));
+  EEPROM.put(addr, stringBuf);
+  load_mqtt_config();
+  return 1;
+}
+
+int set_mqtt_password(String new_password) {
+  int addr = mqtt_password_offset;
+  char stringBuf[mqtt_password_buff_size];
+  // getBytes handles truncating the string if it's longer than the buffer.
+  new_password.getBytes((unsigned char *)stringBuf, sizeof(stringBuf));
+  EEPROM.put(addr, stringBuf);
+  load_mqtt_config();
+  return 1;
+}
+
+int set_log_interval(String str_interval) {
+  int addr = log_period_offset;
+  int interval = str_interval.toInt();
+  if(interval > 0) {
+    EEPROM.put(addr, interval);
+    load_mqtt_config();
+  }
+  return interval;
+}
