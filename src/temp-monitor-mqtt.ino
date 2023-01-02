@@ -25,18 +25,8 @@ const int mqtt_password_offset = mqtt_username_offset + mqtt_username_buff_size;
 int log_period = 1800;
 const int log_period_offset = mqtt_password_offset + mqtt_password_buff_size;
 
-#define DHTPIN D4     // what pin we're connected to
-
-// Uncomment whatever type you're using!
-//#define DHTTYPE DHT11     // DHT 11 
-#define DHTTYPE DHT22       // DHT 22 (AM2302)
-//#define DHTTYPE DHT21     // DHT 21 (AM2301)
-
-// Connect pin 1 (on the left) of the sensor to +3.3V
-// Connect pin 2 of the sensor to whatever your DHTPIN is
-// Connect pin 4 (on the right) of the sensor to GROUND
-// Connect a 10K resistor from pin 2 (data) to pin 1 (power) of the sensor
-
+#define DHTPIN D4
+#define DHTTYPE DHT22
 DHT dht(DHTPIN, DHTTYPE);
 
 // time sync interval in seconds
@@ -76,7 +66,6 @@ void setup() {
 
     Particle.variable("Log period in seconds", log_period);
     Particle.variable("Program name", program_name);
-    Particle.variable("Device ID", device_id.c_str());
     Particle.variable("MQTT Server", mqtt_server);
     //Particle.variable("MQTT Username", mqtt_username);
     //Particle.variable("MQTT Password", mqtt_password);
