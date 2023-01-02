@@ -78,8 +78,8 @@ void setup() {
     Particle.variable("Program name", program_name);
     Particle.variable("Device ID", device_id.c_str());
     Particle.variable("MQTT Server", mqtt_server);
-    Particle.variable("MQTT Username", mqtt_username);
-    Particle.variable("MQTT Password", mqtt_password);
+    //Particle.variable("MQTT Username", mqtt_username);
+    //Particle.variable("MQTT Password", mqtt_password);
 
     // MQTT connect
     client.connect(device_id.c_str(), mqtt_username, mqtt_password);
@@ -87,10 +87,12 @@ void setup() {
     // MQTT publish
     if (client.isConnected()) {
         client.publish(String::format("%s/message", device_id.c_str()),"MQTT Connected");
-        // client.subscribe("inTopic/message");
+        String message = String::format("Succes for server %s", mqtt_server);
+        Particle.publish("MQTT Connection Status", message, PRIVATE);
     }
     else {
-        Particle.publish("MQTT Connection Failed", "servername", PRIVATE);
+        String message = String::format("Failed for server %s", mqtt_server);
+        Particle.publish("MQTT Connection Status", message, PRIVATE);
     }
 
     dht.begin();
@@ -121,7 +123,7 @@ void loop() {
 
         // Check if any reads failed and if so try again.
         if (isnan(h) || isnan(t_c) || isnan(dp_c)) {
-            // Particle.publish("status", "read failed", PRIVATE);
+            Particle.publish("status", "sensor read failed", PRIVATE);
             if (attempts < 3) {
                 // Wait a moment then try reading again
                 delay(5000);
@@ -186,13 +188,13 @@ void load_mqtt_config() {
     {
         char stringBuf[mqtt_username_buff_size];
         EEPROM.get(mqtt_username_offset, stringBuf);
-        stringBuf[sizeof(stringBuf) - 1] = 0; // make sure it's null terminated
+        stringBuf[sizeof(stringBuf) - 1] = 0;
         for (int i = 0; i < sizeof(stringBuf); i++) mqtt_username[i] = stringBuf[i];
     }
     {
         char stringBuf[mqtt_password_buff_size];
         EEPROM.get(mqtt_password_offset, stringBuf);
-        stringBuf[sizeof(stringBuf) - 1] = 0; // make sure it's null terminated
+        stringBuf[sizeof(stringBuf) - 1] = 0;
         for (int i = 0; i < sizeof(stringBuf); i++) mqtt_password[i] = stringBuf[i];
     }
     {
@@ -233,7 +235,6 @@ int set_mqtt_server(String new_mqtt_server) {
   // getBytes handles truncating the string if it's longer than the buffer.
   new_mqtt_server.getBytes((unsigned char *)stringBuf, sizeof(stringBuf));
   EEPROM.put(addr, stringBuf);
-  //for (int i = 0; i < sizeof(stringBuf); i++) mqtt_server[i] = stringBuf[i];
   load_mqtt_config();
   return 1;
 }
@@ -241,7 +242,6 @@ int set_mqtt_server(String new_mqtt_server) {
 int set_mqtt_useranme(String new_user_name) {
   int addr = mqtt_username_offset;
   char stringBuf[mqtt_username_buff_size];
-  // getBytes handles truncating the string if it's longer than the buffer.
   new_user_name.getBytes((unsigned char *)stringBuf, sizeof(stringBuf));
   EEPROM.put(addr, stringBuf);
   load_mqtt_config();
@@ -251,7 +251,6 @@ int set_mqtt_useranme(String new_user_name) {
 int set_mqtt_password(String new_password) {
   int addr = mqtt_password_offset;
   char stringBuf[mqtt_password_buff_size];
-  // getBytes handles truncating the string if it's longer than the buffer.
   new_password.getBytes((unsigned char *)stringBuf, sizeof(stringBuf));
   EEPROM.put(addr, stringBuf);
   load_mqtt_config();
