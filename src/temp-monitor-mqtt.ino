@@ -159,7 +159,9 @@ void mqtt_publish(const char *metric, float value, const char *unit) {
     }
     if (client.isConnected()) {
         client.publish(String::format("%s/readings/%s", device_id.c_str(), metric),
-                       String::format("{\"data\":{\"value\":%4.2f,\"unit\":\"%s\"}}", value, unit));
+                       String::format("{\"timestamp\":\"%s\",\"data\":{\"value\":%4.2f,\"unit\":\"%s\"}}",
+                       Time.format(Time.now(), TIME_FORMAT_ISO8601_FULL).c_str(), value, unit)
+                       );
     }
     else {
         Particle.publish("status", "Unable to publish to MQTT server - disconnected.", PRIVATE);
