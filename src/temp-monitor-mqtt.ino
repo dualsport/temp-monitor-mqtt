@@ -50,6 +50,8 @@ MQTT client(mqtt_server, 1883, callback);
 void callback(char* topic, byte* payload, unsigned int length) {
 }
 
+SYSTEM_THREAD(ENABLED);
+
 void setup() {
     load_mqtt_config();
     client.setBroker(mqtt_server, 1883);
