@@ -74,7 +74,7 @@ void setup() {
 
     // MQTT connect
     client.connect(device_id.c_str(), mqtt_username, mqtt_password);
-    delay(50);
+    delay(1000);
     // MQTT publish
     if (client.isConnected()) {
         client.publish(String::format("%s/message", device_id.c_str()),"MQTT Connected");
@@ -98,7 +98,13 @@ void setup() {
 }
 
 void loop() {
-    if (client.isConnected()) {
+    if (!client.isConnected()) {
+        String message = String::format("Attempting reconnect to server %s", mqtt_server);
+        Particle.publish("MQTT Connection Status", message, PRIVATE);
+        client.connect(device_id.c_str(), mqtt_username, mqtt_password);
+        delay(10000);
+    }
+    else {
         client.loop();
     }
     if (Time.now() >= next_read) {
