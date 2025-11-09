@@ -38,6 +38,10 @@ time_t current_time;
 time_t next_read = 0;
 time_t last_publish = 0;
 
+# MQTT reconnect attempts
+unsigned long last_reconnect_attempt = 0;
+const unsigned long reconnect_interval = 10000; // attempt reconnect every 10 seconds
+
 int attempts = 0;
 int led1 = D7; //onboard led
 
@@ -97,14 +101,22 @@ void setup() {
 
 void loop() {
     if (!client.isConnected()) {
-        String message = String::format("Attempting reconnect to server %s", mqtt_server);
-        Particle.publish("MQTT Connection Status", message, PRIVATE);
-        client.connect(device_id.c_str(), mqtt_username, mqtt_password);
-        delay(10000);
-    }
-    else {
-        client.loop();
-    }
+        unsigned long now = millis(); // Use millis() for non-blocking delays
+        
+        // Check if it's time to try reconnecting
+        if (now - last_reconnect_attempt > reconnect_interval) {
+            last_reconnect_attempt = now; // Mark the time of this attempt
+            
+            String message = String::format("Attempting reconnect to server %s", mqtt_server);
+            Particle.publish("MQTT Connection Status", message, PRIVATE); // 
+            
+            // Attempt connection
+            client.connect(device_id.c_str(), mqtt_username, mqtt_password);
+        }
+    }   
+ 
+    client.loop();
+
     if (Time.now() >= next_read) {
         current_time = Time.now();
         digitalWrite(led1, HIGH);
