@@ -38,7 +38,7 @@ time_t current_time;
 time_t next_read = 0;
 time_t last_publish = 0;
 
-# MQTT reconnect attempts
+// MQTT reconnect attempts
 unsigned long last_reconnect_attempt = 0;
 const unsigned long reconnect_interval = 10000; // attempt reconnect every 10 seconds
 
@@ -188,20 +188,20 @@ void load_mqtt_config() {
         char stringBuf[mqtt_server_buff_size];
         EEPROM.get(mqtt_server_offset, stringBuf);
         stringBuf[sizeof(stringBuf) - 1] = 0; // make sure it's null terminated
-        for (int i = 0; i < sizeof(stringBuf); i++) mqtt_server[i] = stringBuf[i];
+        for (std::size_t i = 0; i < sizeof(stringBuf); i++) mqtt_server[i] = stringBuf[i];
         client.setBroker(mqtt_server, 1883);
     }
     {
         char stringBuf[mqtt_username_buff_size];
         EEPROM.get(mqtt_username_offset, stringBuf);
         stringBuf[sizeof(stringBuf) - 1] = 0;
-        for (int i = 0; i < sizeof(stringBuf); i++) mqtt_username[i] = stringBuf[i];
+        for (std::size_t i = 0; i < sizeof(stringBuf); i++) mqtt_username[i] = stringBuf[i];
     }
     {
         char stringBuf[mqtt_password_buff_size];
         EEPROM.get(mqtt_password_offset, stringBuf);
         stringBuf[sizeof(stringBuf) - 1] = 0;
-        for (int i = 0; i < sizeof(stringBuf); i++) mqtt_password[i] = stringBuf[i];
+        for (std::size_t i = 0; i < sizeof(stringBuf); i++) mqtt_password[i] = stringBuf[i];
     }
     {
         int period;
