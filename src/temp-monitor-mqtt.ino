@@ -105,10 +105,10 @@ void loop() {
         
         // Check if it's time to try reconnecting
         if (now - last_reconnect_attempt > reconnect_interval) {
-            last_reconnect_attempt = now; // Mark the time of this attempt
+            last_reconnect_attempt = now;
             
             String message = String::format("Attempting reconnect to server %s", mqtt_server);
-            Particle.publish("MQTT Connection Status", message, PRIVATE); // 
+            Particle.publish("MQTT Connection Status", message, PRIVATE);
             
             // Attempt connection
             client.connect(device_id.c_str(), mqtt_username, mqtt_password);
@@ -171,10 +171,6 @@ void loop() {
 }
 
 void mqtt_publish(const char *metric, float value, const char *unit) {
-    if (!client.isConnected()) {
-        client.connect(device_id.c_str(), mqtt_username, mqtt_password);
-        delay(50);
-    }
     if (client.isConnected()) {
         client.publish(String::format("%s/readings/%s", device_id.c_str(), metric),
                        String::format("{\"timestamp\":\"%s\",\"data\":{\"value\":%4.2f,\"unit\":\"%s\"}}",
@@ -182,6 +178,7 @@ void mqtt_publish(const char *metric, float value, const char *unit) {
                        );
     }
     else {
+        // If not connected, just report it. The main loop is handling the reconnect.
         Particle.publish("status", "Unable to publish to MQTT server - disconnected.", PRIVATE);
     }
 }
