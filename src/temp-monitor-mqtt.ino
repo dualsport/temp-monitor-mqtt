@@ -102,19 +102,23 @@ void setup() {
 void loop() {
     if (!client.isConnected()) {
         unsigned long now = millis(); // Use millis() for non-blocking delays
-        
+
         // Check if it's time to try reconnecting
         if (now - last_reconnect_attempt > reconnect_interval) {
             last_reconnect_attempt = now;
-            
+
             String message = String::format("Attempting reconnect to server %s", mqtt_server);
             Particle.publish("MQTT Connection Status", message, PRIVATE);
-            
+
             // Attempt connection
             client.connect(device_id.c_str(), mqtt_username, mqtt_password);
+            if (client.isConnected()) {
+                String message = String::format("Successfully reconnected to server %s", mqtt_server);
+                Particle.publish("MQTT Connection Status", message, PRIVATE);
+            }
         }
-    }   
- 
+    }
+
     client.loop();
 
     if (Time.now() >= next_read) {
