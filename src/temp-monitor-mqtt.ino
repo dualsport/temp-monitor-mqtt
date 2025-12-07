@@ -2,7 +2,7 @@
 #include "Adafruit_DHT_Particle.h"
 #include "MQTT.h"
 
-char program_name[] = "particle-temp-monitor-dht22-mqtt";
+char program_name[] = "particle-temp-monitor-dht22-mqtt-v1.0.01";
 String device_id = System.deviceID();
 
 // Buffersizes for storing credentials in EEPROM
