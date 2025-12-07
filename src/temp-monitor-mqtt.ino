@@ -2,7 +2,7 @@
 #include "Adafruit_DHT_Particle.h"
 #include "MQTT.h"
 
-char program_name[] = "particle-temp-monitor-dht22-mqtt";
+char program_name[] = "particle-temp-monitor-dht22-mqtt-v1.0.01";
 String device_id = System.deviceID();
 
 // Buffersizes for storing credentials in EEPROM
@@ -37,6 +37,10 @@ time_t next_sync;
 time_t current_time;
 time_t next_read = 0;
 time_t last_publish = 0;
+
+// MQTT reconnect attempts
+unsigned long last_reconnect_attempt = 0;
+const unsigned long reconnect_interval = 10000; // attempt reconnect every 10 seconds
 
 int attempts = 0;
 int led1 = D7; //onboard led
@@ -97,14 +101,26 @@ void setup() {
 
 void loop() {
     if (!client.isConnected()) {
-        String message = String::format("Attempting reconnect to server %s", mqtt_server);
-        Particle.publish("MQTT Connection Status", message, PRIVATE);
-        client.connect(device_id.c_str(), mqtt_username, mqtt_password);
-        delay(10000);
+        unsigned long now = millis(); // Use millis() for non-blocking delays
+
+        // Check if it's time to try reconnecting
+        if (now - last_reconnect_attempt > reconnect_interval) {
+            last_reconnect_attempt = now;
+
+            String message = String::format("Attempting reconnect to server %s", mqtt_server);
+            Particle.publish("MQTT Connection Status", message, PRIVATE);
+
+            // Attempt connection
+            client.connect(device_id.c_str(), mqtt_username, mqtt_password);
+            if (client.isConnected()) {
+                String message = String::format("Successfully reconnected to server %s", mqtt_server);
+                Particle.publish("MQTT Connection Status", message, PRIVATE);
+            }
+        }
     }
-    else {
-        client.loop();
-    }
+
+    client.loop();
+
     if (Time.now() >= next_read) {
         current_time = Time.now();
         digitalWrite(led1, HIGH);
@@ -159,10 +175,6 @@ void loop() {
 }
 
 void mqtt_publish(const char *metric, float value, const char *unit) {
-    if (!client.isConnected()) {
-        client.connect(device_id.c_str(), mqtt_username, mqtt_password);
-        delay(50);
-    }
     if (client.isConnected()) {
         client.publish(String::format("%s/readings/%s", device_id.c_str(), metric),
                        String::format("{\"timestamp\":\"%s\",\"data\":{\"value\":%4.2f,\"unit\":\"%s\"}}",
@@ -170,6 +182,7 @@ void mqtt_publish(const char *metric, float value, const char *unit) {
                        );
     }
     else {
+        // If not connected, just report it. The main loop is handling the reconnect.
         Particle.publish("status", "Unable to publish to MQTT server - disconnected.", PRIVATE);
     }
 }
@@ -179,20 +192,20 @@ void load_mqtt_config() {
         char stringBuf[mqtt_server_buff_size];
         EEPROM.get(mqtt_server_offset, stringBuf);
         stringBuf[sizeof(stringBuf) - 1] = 0; // make sure it's null terminated
-        for (int i = 0; i < sizeof(stringBuf); i++) mqtt_server[i] = stringBuf[i];
+        for (std::size_t i = 0; i < sizeof(stringBuf); i++) mqtt_server[i] = stringBuf[i];
         client.setBroker(mqtt_server, 1883);
     }
     {
         char stringBuf[mqtt_username_buff_size];
         EEPROM.get(mqtt_username_offset, stringBuf);
         stringBuf[sizeof(stringBuf) - 1] = 0;
-        for (int i = 0; i < sizeof(stringBuf); i++) mqtt_username[i] = stringBuf[i];
+        for (std::size_t i = 0; i < sizeof(stringBuf); i++) mqtt_username[i] = stringBuf[i];
     }
     {
         char stringBuf[mqtt_password_buff_size];
         EEPROM.get(mqtt_password_offset, stringBuf);
         stringBuf[sizeof(stringBuf) - 1] = 0;
-        for (int i = 0; i < sizeof(stringBuf); i++) mqtt_password[i] = stringBuf[i];
+        for (std::size_t i = 0; i < sizeof(stringBuf); i++) mqtt_password[i] = stringBuf[i];
     }
     {
         int period;
